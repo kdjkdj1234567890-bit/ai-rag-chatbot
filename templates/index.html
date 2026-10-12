@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>한울 AI 지식챗봇 — 기업 문서 Q&A (시연용)</title>
+<style>
+:root{
+  --bg:#f4f6fb; --panel:#ffffff; --ink:#1c2333; --muted:#68718a;
+  --brand:#2f5bff; --brand-dark:#2348d6; --brand-soft:#e9efff;
+  --line:#e3e8f2; --ok:#1a9e5c; --warn:#c77700; --err:#d63a3a;
+  --radius:14px; --shadow:0 6px 24px rgba(28,35,51,.08);
+  --font:"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);
+  height:100vh;display:flex;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font-family:var(--font);cursor:pointer}
+/* ---------- 사이드바 ---------- */
+aside{width:340px;min-width:340px;background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;height:100vh}
+.brand{padding:20px 20px 16px;border-bottom:1px solid var(--line)}
+.brand .logo-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--brand),#6a8bff);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px}
+.brand h1{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.brand p{font-size:12px;color:var(--muted);margin-top:4px}
+.badge{display:inline-block;font-size:11px;font-weight:700;color:var(--brand-dark);
+  background:var(--brand-soft);border-radius:20px;padding:3px 10px;margin-top:8px}
+.stats{display:flex;gap:8px;padding:14px 20px;border-bottom:1px solid var(--line)}
+.stat{flex:1;background:var(--bg);border-radius:10px;padding:10px;text-align:center}
+.stat b{font-size:20px;display:block;color:var(--brand-dark)}
+.stat span{font-size:11px;color:var(--muted)}
+.doc-tools{padding:14px 20px 8px;display:flex;gap:8px}
+.btn{border:none;border-radius:10px;padding:10px 14px;font-size:13.5px;font-weight:700;
+  transition:transform .08s,box-shadow .15s,background .15s}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:0 3px 10px rgba(47,91,255,.35)}
+.btn-primary:hover{background:var(--brand-dark)}
+.btn-ghost{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.btn-ghost:hover{background:#eaf0fb}
+.doc-list{flex:1;overflow-y:auto;padding:8px 14px 14px}
+.doc-item{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;
+  border:1px solid transparent;margin-bottom:6px;transition:background .15s}
+.doc-item:hover{background:var(--bg);border-color:var(--line)}
+.doc-ico{width:34px;height:34px;min-width:34px;border-radius:9px;background:var(--brand-soft);
+  color:var(--brand-dark);display:flex;align-items:center;justify-content:center;font-size:16px}
+.doc-meta{flex:1;min-width:0}
+.doc-meta .fn{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-meta .fc{font-size:11.5px;color:var(--muted);margin-top:2px}
+.doc-del{border:none;background:none;color:#b6bdd0;font-size:16px;padding:6px;border-radius:8px}
+.doc-del:hover{color:var(--err);background:#fdeeee}
+.empty-docs{text-align:center;color:var(--muted);font-size:13px;padding:26px 12px;line-height:1.7}
+.empty-docs .big{font-size:34px;display:block;margin-bottom:8px}
+/* ---------- 메인 ---------- */
+main{flex:1;display:flex;flex-direction:column;height:100vh;min-width:0}
+.chat-head{padding:16px 26px;border-bottom:1px solid var(--line);background:var(--panel);
+  display:flex;align-items:center;gap:12px}
+.chat-head h2{font-size:16px;font-weight:800}
+.chat-head .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.status-dot{width:10px;height:10px;border-radius:50%;background:var(--ok);min-width:10px;
+  box-shadow:0 0 0 4px rgba(26,158,92,.15)}
+#chat{flex:1;overflow-y:auto;padding:26px;max-width:860px;width:100%;margin:0 auto}
+.msg{margin-bottom:18px;display:flex;gap:10px;animation:fadeUp .25s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.avatar{width:34px;height:34px;min-width:34px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:15px;font-weight:800;color:#fff}
+.msg.user{flex-direction:row-reverse}
+.msg.user .avatar{background:#8a93ad}
+.msg.bot .avatar{background:linear-gradient(135deg,var(--brand),#6a8bff)}
+.bubble{max-width:78%;padding:13px 16px;border-radius:16px;font-size:14.5px;line-height:1.75;
+  white-space:pre-wrap;word-break:keep-all}
+.msg.user .bubble{background:var(--brand);color:#fff;border-bottom-right-radius:5px}
+.msg.bot .bubble{background:var(--panel);border:1px solid var(--line);
+  border-bottom-left-radius:5px;box-shadow:var(--shadow)}
+.msg.bot .bubble mark{background:#fff3b0;border-radius:3px;padding:0 2px}
+.evidence{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
+.ev{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px;background:#fafbff}
+.ev .src{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:var(--brand-dark);margin-bottom:6px}
+.ev .src .score{margin-left:auto;font-weight:700;color:var(--muted);font-size:11px}
+.ev .txt{font-size:13px;line-height:1.75;color:#3a4358}
+.ev .txt mark{background:#fff3b0;border-radius:3px;padding:0 2px}
+.elapsed{font-size:11px;color:var(--muted);margin-top:8px}
+.typing{display:inline-flex;gap:5px;padding:6px 2px}
+.typing span{width:8px;height:8px;border-radius:50%;background:#9aa5c4;animation:blink 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+/* 환영 카드 */
+.welcome{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:30px 28px;margin-bottom:10px}
+.welcome h3{font-size:19px;font-weight:800;margin-bottom:10px;letter-spacing:-.3px}
+.welcome p{font-size:14px;color:var(--muted);line-height:1.8;margin-bottom:16px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:20px;padding:8px 15px;
+  font-size:13px;font-weight:600;color:var(--brand-dark);transition:all .15s}
+.chip:hover{background:var(--brand-soft);border-color:var(--brand)}
+/* 입력창 */
+.input-bar{padding:16px 26px 22px;background:var(--panel);border-top:1px solid var(--line)}
+.input-wrap{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:flex-end}
+#q{flex:1;border:1.5px solid var(--line);border-radius:14px;padding:13px 16px;font-size:14.5px;
+  font-family:var(--font);resize:none;max-height:120px;line-height:1.6;outline:none;transition:border .15s}
+#q:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(47,91,255,.12)}
+#send{width:52px;height:52px;min-width:52px;border:none;border-radius:14px;background:var(--brand);
+  color:#fff;font-size:20px;box-shadow:0 3px 10px rgba(47,91,255,.35)}
+#send:hover{background:var(--brand-dark)}
+#send:disabled{background:#b9c2d8;box-shadow:none;cursor:not-allowed}
+.hint{max-width:860px;margin:8px auto 0;font-size:11.5px;color:var(--muted);text-align:center}
+/* 토스트 */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:#232b40;color:#fff;font-size:13.5px;font-weight:600;padding:13px 20px;border-radius:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:all .3s;z-index:99;max-width:90vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:#a82f2f}
+/* 업로드 오버레이 */
+#uploadModal{position:fixed;inset:0;background:rgba(20,26,43,.5);display:none;
+  align-items:center;justify-content:center;z-index:50;padding:20px}
+#uploadModal.show{display:flex}
+.modal{background:#fff;border-radius:18px;padding:28px;width:440px;max-width:100%;box-shadow:var(--shadow)}
+.modal h3{font-size:17px;font-weight:800;margin-bottom:6px}
+.modal p{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.7}
+.drop{border:2px dashed #c3cde6;border-radius:12px;padding:30px 16px;text-align:center;
+  font-size:13.5px;color:var(--muted);cursor:pointer;transition:all .15s;line-height:1.8}
+.drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-dark)}
+.modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+#fileInput{display:none}
+.progress{display:none;margin-top:14px;font-size:13px;color:var(--brand-dark);font-weight:700}
+/* 모바일 */
+#menuBtn{display:none;border:1px solid var(--line);background:#fff;border-radius:10px;
+  width:40px;height:40px;font-size:18px}
+@media (max-width:820px){
+  aside{position:fixed;left:0;top:0;z-index:40;transform:translateX(-105%);transition:transform .25s;
+    box-shadow:0 0 40px rgba(0,0,0,.2)}
+  aside.open{transform:none}
+  #menuBtn{display:block}
+  #chat{padding:16px}
+  .bubble{max-width:88%}
+  .chat-head{padding:12px 16px}
+  .input-bar{padding:12px 14px 16px}
+  .welcome{padding:22px 18px}
+}
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="brand">
+    <div class="logo-row">
+      <div class="logo">H</div>
+      <h1>한울 AI 지식챗봇</h1>
+    </div>
+    <p>사내 문서 기반 Q&A · TF-IDF 검색 + 발췌 답변</p>
+    <span class="badge">시연용 프로토타입</span>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="statDocs">0</b><span>등록 문서</span></div>
+    <div class="stat"><b id="statChunks">0</b><span>검색 청크</span></div>
+  </div>
+  <div class="doc-tools">
+    <button class="btn btn-primary" id="uploadBtn" style="flex:1">＋ 문서 업로드</button>
+    <button class="btn btn-ghost" id="seedBtn" title="샘플 문서 불러오기">샘플</button>
+  </div>
+  <div class="doc-list" id="docList"></div>
+</aside>
+
+<main>
+  <div class="chat-head">
+    <button id="menuBtn" aria-label="메뉴">☰</button>
+    <div class="status-dot"></div>
+    <div>
+      <h2>기업 문서 Q&A</h2>
+      <div class="sub">질문하면 관련 문서에서 근거를 찾아 출처와 함께 답변합니다</div>
+    </div>
+  </div>
+
+  <div id="chat">
+    <div class="welcome" id="welcome">
+      <h3>👋 사내 규정에 대해 무엇이든 물어보세요</h3>
+      <p>이 챗봇은 업로드된 문서 안에서만 답을 찾습니다. 답변에는 항상
+         <b>출처(몇 번째 문서의 어느 부분)</b>가 표시되고, 문서에 없는 내용은
+         "찾을 수 없습니다"라고 정직하게 답합니다.</p>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div id="messages"></div>
+  </div>
+
+  <div class="input-bar">
+    <div class="input-wrap">
+      <textarea id="q" rows="1" placeholder="예) 연차는 몇 일까지 쓸 수 있나요?"></textarea>
+      <button id="send" title="전송">➤</button>
+    </div>
+    <div class="hint">외부 AI API를 사용하지 않습니다 · 모든 처리는 이 서버 안에서 이루어집니다</div>
+  </div>
+</main>
+
+<div id="uploadModal">
+  <div class="modal">
+    <h3>문서 업로드</h3>
+    <p>txt / md 파일 여러 개를 한 번에 올릴 수 있습니다. 업로드 즉시 자동으로
+       청크로 나뉘어 검색 인덱스에 반영됩니다.</p>
+    <div class="drop" id="drop">📄 클릭하거나 파일을 드래그하세요<br>
+      <span style="font-size:12px">최대 5MB · txt, md 형식</span></div>
+    <input type="file" id="fileInput" multiple accept=".txt,.md">
+    <div class="progress" id="upProg">업로드 중… 잠시만 기다려 주세요.</div>
+    <div class="row">
+      <button class="btn btn-ghost" id="modalClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const chat = $("#chat"), messages = $("#messages"), q = $("#q");
+
+const SUGGESTIONS = [
+  "연차는 1년에 며칠 쓸 수 있어?",
+  "재택근무는 주 며칠까지 가능해?",
+  "비밀번호는 얼마나 자주 바꿔야 해?",
+  "워크허브에서 프로젝트는 어떻게 만들어?",
+  "경조사 휴가 규정을 알려줘"
+];
+
+function toast(msg, isErr){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.className = isErr ? "err" : "";
+  requestAnimationFrame(()=>t.classList.add("show"));
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.classList.remove("show"), 3200);
+}
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+function renderChips(){
+  $("#chips").innerHTML = SUGGESTIONS.map(s=>
+    `<button class="chip">${esc(s)}</button>`).join("");
+  document.querySelectorAll(".chip").forEach(c=>
+    c.onclick = ()=>{ q.value = c.textContent; send(); });
+}
+
+async function refreshDocs(){
+  try{
+    const r = await fetch("/api/docs"); const docs = await r.json();
+    const s = await (await fetch("/api/stats")).json();
+    $("#statDocs").textContent = s.docs; $("#statChunks").textContent = s.chunks;
+    const list = $("#docList");
+    if(!docs.length){
+      list.innerHTML = `<div class="empty-docs"><span class="big">📂</span>
+        등록된 문서가 없습니다.<br>‘샘플’ 버튼으로 예시 문서를 불러오거나<br>직접 업로드해 보세요.</div>`;
+      return;
+    }
+    list.innerHTML = docs.map((d,i)=>`
+      <div class="doc-item">
+        <div class="doc-ico">📄</div>
+        <div class="doc-meta">
+          <div class="fn" title="${esc(d.filename)}">${i+1}. ${esc(d.filename)}</div>
+          <div class="fc">${d.chunks}개 청크 · ${esc(d.uploaded_at)}</div>
+        </div>
+        <button class="doc-del" data-id="${d.id}" title="삭제">✕</button>
+      </div>`).join("");
+    list.querySelectorAll(".doc-del").forEach(b=>b.onclick = async ()=>{
+      if(!confirm("이 문서를 삭제할까요? 검색에서도 제외됩니다.")) return;
+      const r = await fetch("/api/docs/"+b.dataset.id,{method:"DELETE"});
+      const j = await r.json();
+      toast(j.message || j.error, !j.ok); refreshDocs();
+    });
+  }catch(e){ toast("문서 목록을 불러오지 못했습니다.", true); }
+}
+
+function addMsg(role, html){
+  const w = $("#welcome"); if(w) w.style.display = "none";
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  div.innerHTML = `<div class="avatar">${role==="user"?"나":"H"}</div>
+    <div class="bubble">${html}</div>`;
+  messages.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div.querySelector(".bubble");
+}
+
+async function send(){
+  const text = q.value.trim();
+  if(!text){ toast("질문을 입력해 주세요."); q.focus(); return; }
+  q.value = ""; q.style.height = "auto"; $("#send").disabled = true;
+  addMsg("user", esc(text));
+  const bubble = addMsg("bot", `<span class="typing"><span></span><span></span><span></span></span>`);
+  try{
+    const r = await fetch("/api/chat",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question:text})});
+    const j = await r.json();
+    if(!j.ok){ bubble.innerHTML = "⚠️ " + esc(j.error || "오류가 발생했습니다."); }
+    else if(!j.found){
+      bubble.innerHTML = "🔍 " + esc(j.answer);
+    } else {
+      let h = esc(j.answer).replace(/\n/g,"<br>");
+      if(j.evidences && j.evidences.length){
+        h += `<div class="evidence">`;
+        j.evidences.forEach(e=>{
+          h += `<div class="ev">
+            <div class="src">📄 문서 ${e.doc_no} · ${esc(e.filename)} · ${e.chunk_no}번째 조각
+              <span class="score">유사도 ${e.score}</span></div>
+            <div class="txt">${e.excerpt_html}</div></div>`;
+        });
+        h += `</div><div class="elapsed">⏱ 검색·답변 생성 ${j.elapsed||0}초 · 근거 ${j.evidences.length}개</div>`;
+      }
+      bubble.innerHTML = h;
+    }
+  }catch(e){
+    bubble.innerHTML = "⚠️ 서버와 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.";
+  }
+  $("#send").disabled = false;
+  chat.scrollTop = chat.scrollHeight;
+}
+
+$("#send").onclick = send;
+q.addEventListener("keydown", e=>{
+  if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+});
+q.addEventListener("input", ()=>{ q.style.height="auto"; q.style.height=Math.min(q.scrollHeight,120)+"px"; });
+
+// 업로드
+const modal = $("#uploadModal");
+$("#uploadBtn").onclick = ()=>{ modal.classList.add("show"); };
+$("#modalClose").onclick = ()=>{ modal.classList.remove("show"); };
+modal.addEventListener("click", e=>{ if(e.target===modal) modal.classList.remove("show"); });
+const drop = $("#drop"), fi = $("#fileInput");
+drop.onclick = ()=>fi.click();
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop", e=>{ if(e.dataTransfer.files.length) doUpload(e.dataTransfer.files); });
+fi.onchange = ()=>{ if(fi.files.length) doUpload(fi.files); fi.value=""; };
+
+async function doUpload(files){
+  $("#upProg").style.display = "block";
+  const fd = new FormData();
+  [...files].forEach(f=>fd.append("files", f));
+  try{
+    const r = await fetch("/api/upload",{method:"POST",body:fd});
+    const j = await r.json();
+    (j.errors||[]).forEach(e=>toast(e, true));
+    toast(j.message || j.error, !j.ok && !(j.added&&j.added.length));
+    if(j.ok || (j.added&&j.added.length)) modal.classList.remove("show");
+    refreshDocs();
+  }catch(e){ toast("업로드 중 오류가 발생했습니다.", true); }
+  $("#upProg").style.display = "none";
+}
+
+$("#seedBtn").onclick = async ()=>{
+  try{
+    const r = await fetch("/api/seed",{method:"POST"});
+    const j = await r.json();
+    toast(j.message || j.error, !j.ok); refreshDocs();
+  }catch(e){ toast("샘플 문서를 불러오지 못했습니다.", true); }
+};
+
+$("#menuBtn").onclick = ()=>$("#sidebar").classList.toggle("open");
+document.addEventListener("click", e=>{
+  if(window.innerWidth<=820 && $("#sidebar").classList.contains("open")
+     && !$("#sidebar").contains(e.target) && e.target.id!=="menuBtn")
+    $("#sidebar").classList.remove("open");
+});
+
+renderChips(); refreshDocs();
+</script>
+</body>
+</html>
